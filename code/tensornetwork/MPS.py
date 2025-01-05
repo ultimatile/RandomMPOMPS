@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 # from .rounding import *
 from .MPO import MPO
-from .linalg import truncated_svd,random_truncated_svd,lq
+from .linalg import truncated_svd,lq
 from .stopping import Cutoff,no_truncation
 import copy
 import math 

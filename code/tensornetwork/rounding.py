@@ -3,7 +3,7 @@ import numpy.linalg as la
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from .linalg import truncated_svd,random_truncated_svd,truncated_eigendecomposition
+from .linalg import truncated_svd,truncated_eigendecomposition
 
 from .MPS import MPS
 from .stopping import Cutoff,no_truncation
