@@ -74,7 +74,7 @@ def fixed_synth_tensor_experiment(mpo, mps, baseline, bond_dims, names, num_runs
                 elif name == 'zipup':
                     result = zipup(mpo, mps, stop=FixedDimension(bond_dim), finalround=None,conditioning=True)
                 elif name == 'fit':
-                    result = fit(mpo, mps, max_sweeps=fit_sweeps, stop=FixedDimension(bond_dim))
+                    result = fit(mpo, mps, max_sweeps=fit_sweeps, stop=FixedDimension(bond_dim),guess="input")
                 else:
                     print("Invalid algorithm choice for ", name, " review your inputted algorithm names")
                     return
@@ -135,6 +135,7 @@ def fixed_synth_tensor_experiment(mpo, mps, baseline, bond_dims, names, num_runs
         plot_accuracy2(names, bond_dims, accs, std_accs, ax=axs[1])
     if return_data:
         return times, std_times, accs, std_accs
+    
 def cutoff_synth_tensor_experiment(mpo,mps,baseline,cutoffs,names,a=-.5,b=1,highres=False,return_data=False,
                                    fit_sweeps=8,sketch_dim=10,sketch_increment=10):
     # baseline.canonize()
@@ -304,3 +305,77 @@ def incQr_benchmark(max_size=500, complex_matrices=False,log_scale=False):
     plt.legend()
     plt.grid(True)
     plt.show()
+
+def fitting_experiment(mpo, mps, baseline, bond_dims, names, num_runs=1, a=-.5, b=1, highres=False, return_data=False,
+                                  fit_sweeps=8, sketch_increment=10, sketch_dim=10):
+    times = {name: [] for name in names}
+    accs = {name: [] for name in names}
+    std_times = {name: [] for name in names}
+    std_accs = {name: [] for name in names}
+    
+    baseline.canonize()
+    print(baseline.norm())
+    
+    column_names = ['Bond Dimension'] + [f'{name} {metric}' for name in names for metric in ['Mean Time', 'Time Std', 'Mean Accuracy', 'Accuracy Std']]
+    results_df = pd.DataFrame(columns=column_names)
+    display(results_df)
+    
+    for bond_dim in bond_dims:
+        temp_times = {name: [] for name in names}
+        temp_accs = {name: [] for name in names}
+        
+        for run in range(num_runs):
+            for name in names:
+                start = time.time()
+                if name == 'naive':
+                    result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim), round_type="dass_blas")
+                elif name == 'rand_then_orth':
+                    result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim), round_type="rand_then_orth_blas", final_round=False)
+                elif name == 'nyst':
+                    result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim), round_type="nystrom_blas", final_round=False)
+                elif name == 'random+oversample':
+                    result = random_contraction_inc(mpo, mps, stop=FixedDimension(max(int(np.ceil(1.75 * bond_dim)), bond_dim + 10)), accuracychecks=False, 
+                                                    finalround=FixedDimension(bond_dim), sketchincrement=sketch_increment, sketchdim=sketch_dim)
+                elif name == 'random':
+                    result = random_contraction_inc(mpo, mps, stop=FixedDimension(bond_dim), accuracychecks=False, 
+                                                    finalround=None, sketchincrement=sketch_increment, sketchdim=sketch_dim)
+                elif name == 'density':
+                    result = density_matrix(mpo, mps, stop=FixedDimension(bond_dim))
+                elif name == 'zipup':
+                    result = zipup(mpo, mps, stop=FixedDimension(bond_dim), finalround=None)
+                elif name == 'fit':
+                    result = fit(mpo, mps, max_sweeps=fit_sweeps, stop=FixedDimension(bond_dim), guess="input")
+                elif name == "fit2":
+                    result = fit(mpo, mps, max_sweeps=2, stop=FixedDimension(bond_dim), guess="input")
+                elif name == "fit10":
+                    result = fit(mpo, mps, max_sweeps=10, stop=FixedDimension(bond_dim), guess="input")
+                else:
+                    print("Invalid algorithm choice for ", name, " review your inputted algorithm names")
+                    return
+                temp_times[name].append(time.time() - start)
+                temp_accs[name].append((baseline - result).norm() / baseline.norm())
+                
+        new_row_data = {'Bond Dimension': bond_dim}
+        for name in names:
+            times_mean = np.mean(temp_times[name])
+            times_std_val = np.std(temp_times[name])
+            acc_mean = np.mean(temp_accs[name])
+            acc_std_val = np.std(temp_accs[name])
+            
+            new_row_data[f'{name} Mean Time'] = times_mean
+            new_row_data[f'{name} Time Std'] = times_std_val
+            new_row_data[f'{name} Mean Accuracy'] = acc_mean
+            new_row_data[f'{name} Accuracy Std'] = acc_std_val
+            
+            times[name].append(times_mean)
+            std_times[name].append(times_std_val)
+            accs[name].append(acc_mean)
+            std_accs[name].append(acc_std_val)
+        
+        new_row_df = pd.DataFrame([new_row_data])
+        results_df = pd.concat([results_df, new_row_df], ignore_index=True)
+        clear_output(wait=True)
+        display(results_df)
+    
+    if return_data:
+        return times, std_times, accs, std_accs

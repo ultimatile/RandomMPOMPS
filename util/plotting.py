@@ -1000,3 +1000,109 @@ def plot_runtime_vs_accuracy(test_names, times_data, std_times_data, accuracy_da
     # Adjust layout to prevent clipping
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to leave space for legend
     plt.show()
+
+
+#Figure 3 plotting functions. 
+# Global settings for consistency
+global_font_size = 18
+global_marker_size = 8
+global_line_width = 2
+
+# Define plot styles globally for reuse
+ # Helper function to darken colors
+import matplotlib.colors as mcolors
+
+def darken_color(color, factor=0.1):
+    color_rgb = mcolors.to_rgb(color)
+    return tuple(max(0, c - factor) for c in color_rgb)
+
+# Define plot styles
+palette = sns.color_palette("Set1", 6)
+PLOT_STYLES = {
+    'naive': (palette[0], None, 'o', 'Contract-Then-Compress', '--'),
+    'random': (palette[1], None, 's', 'Randomized Contraction', '-'),
+    'zipup': (palette[2], None, 'D', 'Zip-up Contraction', '-'),
+    'density': (palette[3], None, '^', 'Density Matrix Contraction', '-'),
+    'fit': (palette[4], None, 'v', 'Fitting 1 sweep', '-'),
+    'fit2': (darken_color(palette[4], 0.2), None, 'v', 'Fitting 2 sweeps', '-'),
+    'fit10': (darken_color(palette[4], 0.4), None, 'v', 'Fitting 10 sweeps', '--'),
+    'random+oversample': ('c', None, 'v', 'Randomized+Oversample', '--'),
+}
+
+def plot_graph3(test_names, cutoffs, data, y_label, title, ax, y_scale='log',naive_marker_flag=True):
+    """Helper function to plot a single graph with conditional formatting and fill_between for std."""
+
+    for name in test_names:
+        if name in PLOT_STYLES and name in data:
+            palette_name, color_idx, marker, label, linestyle = PLOT_STYLES[name]
+            color = sns.color_palette(palette_name, 6)[color_idx] if color_idx is not None else palette_name
+
+            # Extract the mean and std data for fill_between
+            mean_values = data[name]
+            # std_values = std_data[name] if std_data and name in std_data else np.zeros_like(mean_values)
+
+            if name == 'naive':
+                # Plot 'naive' with custom styling
+                if naive_marker_flag:
+                    ax.plot(
+                        cutoffs, mean_values, color=color, marker=marker, label=label,
+                        markersize=16, linewidth=global_line_width, linestyle=linestyle,
+                        markerfacecolor='none', markeredgewidth=1, alpha=1
+                    )
+                else:
+                    ax.plot(
+                        cutoffs, mean_values, color=color, marker=marker, label=label,
+                        markersize=8, linewidth=global_line_width, linestyle=linestyle,
+                        markerfacecolor='none', markeredgewidth=1, alpha=1
+                    )
+            else:
+                # Plot other lines with default settings
+                ax.plot(
+                    cutoffs, mean_values, color=color, marker=marker, label=label,
+                    markersize=global_marker_size, linewidth=global_line_width, linestyle=linestyle
+                )
+
+            # # Add fill_between for std
+            # ax.fill_between(
+            #     cutoffs,
+            #     mean_values - std_values, mean_values + std_values,
+            #     color=color, alpha=0.2
+            # )
+
+    ax.set_yscale(y_scale)
+    ax.set_xlabel(r'Requested Output Bond Dimension $\overline{\chi}$', fontsize=global_font_size)
+    ax.set_ylabel(y_label, fontsize=global_font_size)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.7, alpha=0.7)
+
+    # Adjust tick parameters
+    ax.tick_params(axis='both', which='major', labelsize=global_font_size - 2)
+
+def combined_plot_3(test_names, cutoff_values, mean_times, 
+                  mean_acc):
+    """Function to create a combined plot with three subplots and a shared top legend."""
+    fig, axes = plt.subplots(1, 2, figsize=(18, 8), constrained_layout=False)
+
+    # Adjust layout for tighter spacing
+    plt.subplots_adjust(wspace=.3)
+
+    # Plot each graph on the respective axis
+    plot_graph3(test_names, cutoff_values, mean_times, 'Runtime', None, axes[0],naive_marker_flag=False)
+    plot_graph3(test_names, cutoff_values, mean_acc, 'Relative Error', None, axes[1])
+    # plot_graph(test_names, cutoff_values, mean_bond_dims, 'Bond Dimension', None, axes[2],y_scale="linear",)
+
+    # Collect legend handles and labels from one of the axes
+    handles, labels = axes[0].get_legend_handles_labels()
+
+    # Create a shared legend at the top of the figure
+    fig.legend(
+        handles, labels, loc='upper center', fontsize=global_font_size - 1, ncol=3, 
+        bbox_to_anchor=(0.5, 1.05)
+    )
+
+    # Show the plot
+    plt.show()
+    
+def darken_color(color, factor=0.1):
+    color_rgb = mcolors.to_rgb(color)
+    darkened_color = tuple(max(0, c - factor) for c in color_rgb)
+    return darkened_color
