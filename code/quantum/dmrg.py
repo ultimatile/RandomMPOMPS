@@ -3,8 +3,8 @@ from tensornetwork.linalg import truncated_svd
 from tensornetwork.MPS import MPS 
 import scipy 
 from tqdm import tqdm 
-
 import numpy as np 
+from scipy.linalg import eigh
 
 def dmrg2(mpo,mps, sweeps=10, stop=Cutoff(1e-14), maxit=10,eig_tol=1e-8,eigensolver="Lan"):
     

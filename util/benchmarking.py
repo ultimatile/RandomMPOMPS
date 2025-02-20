@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from IPython.display import display, clear_output
 import pandas as pd
 pd.options.display.float_format = '{:.2e}'.format
-
+from datetime import datetime
 
 sys.path.append('../code')
 from tensornetwork.MPS import MPS
@@ -13,7 +13,7 @@ from tensornetwork.MPO import MPO
 from tensornetwork.contraction import *
 from tensornetwork.stopping import *
 # from tensornetwork.util import * 
-from util.plotting import plot_accuracy,plot_times,plot_times_reversed,plot_accuracy_reversed
+from util.plotting import plot_accuracy,plot_times2,plot_accuracy2,plot_times_reversed,plot_accuracy_reversed
 from tensornetwork.incrementalqr import *
 
 
@@ -35,64 +35,95 @@ def generate_baseline(N, m, a=-0.5, dtype=float):
     baseline = mps_mpo_blas(mps, mpo, stop=Cutoff(1e-15))
     return mpo, mps, baseline
 
-def fixed_synth_tensor_experiment(mpo,mps,baseline,bond_dims,names,a=-.5,b=1,highres=False,return_data=False,
-                                  fit_sweeps=8,sketch_increment=10,sketch_dim=10):    
+def fixed_synth_tensor_experiment(mpo, mps, baseline, bond_dims, names, num_runs=1, a=-.5, b=1, highres=False, return_data=False,
+                                  fit_sweeps=1, sketch_increment=2, sketch_dim=3):
     times = {name: [] for name in names}
     accs = {name: [] for name in names}
+    std_times = {name: [] for name in names}
+    std_accs = {name: [] for name in names}
 
     baseline.canonize()
     print(baseline.norm())
     
-    column_names = ['Bond Dimension'] + [f'{name} {metric}' for name in names for metric in ['Time', 'Accuracy']]
+    column_names = ['Bond Dimension'] + [f'{name} {metric}' for name in names for metric in ['Mean Time', 'Time Std', 'Mean Accuracy', 'Accuracy Std']]
     results_df = pd.DataFrame(columns=column_names)
     display(results_df)
 
     for bond_dim in bond_dims:
-        for name in names:
-            start = time.time()
-            if name == 'naive':
-                result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim),round_type = "dass_blas")
-            elif name == 'rand_then_orth':
-                result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim),round_type = "rand_then_orth_blas",final_round=False)
-            elif name == 'nyst':
-                result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim),round_type = "nystrom_blas",final_round=False)
-            elif name == 'random':
-                result = random_contraction_inc(mpo, mps, stop=FixedDimension(bond_dim), accuracychecks=False, 
-                                              finalround=None,sketchincrement=sketch_increment,sketchdim=sketch_dim)
-            elif name == 'density':
-                result = density_matrix(mpo, mps,stop=FixedDimension(bond_dim))
-            elif name == 'zipup':
-                result = zipup(mpo, mps, stop=FixedDimension(bond_dim),finalround=None)
-            elif name == 'fit':
-                result = fit(mpo, mps, max_sweeps=fit_sweeps,stop=FixedDimension(bond_dim),guess="input")
-            elif name == "fit2":
-                result = fit(mpo, mps, max_sweeps=2,stop=FixedDimension(bond_dim),guess="input")
-            else:
-                print("Invalid algorithm choice for ", name, " review your inputted algorithm names")
-                return
-            times[name].append(time.time() - start)
-            accs[name].append((baseline - result).norm() / baseline.norm())
+        temp_times = {name: [] for name in names}
+        temp_accs = {name: [] for name in names}
 
-        #Data Frame population
+        for run in range(num_runs):
+            for name in names:
+                print(name)
+                start = time.time()
+                if name == 'naive':
+                    result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim), round_type="dass_blas")
+                elif name == 'rand_then_orth':
+                    result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim), round_type="rand_then_orth_blas", final_round=False)
+                elif name == 'nyst':
+                    result = mps_mpo_blas(mps, mpo, stop=FixedDimension(bond_dim), round_type="nystrom_blas", final_round=False)
+                elif name == 'random+oversample':
+                    result = random_contraction_inc(mpo, mps, stop=FixedDimension(max(int(np.ceil(1.5*bond_dim)),bond_dim+10)), accuracychecks=False, 
+                                                    finalround=FixedDimension(bond_dim), sketchincrement=sketch_increment, sketchdim=sketch_dim)
+                elif name == 'random':
+                    result = random_contraction_inc(mpo, mps, stop=FixedDimension(bond_dim), accuracychecks=False, 
+                                                    finalround=None, sketchincrement=sketch_increment, sketchdim=sketch_dim)
+                elif name == 'density':
+                    result = density_matrix(mpo, mps, stop=FixedDimension(bond_dim))
+                elif name == 'zipup':
+                    result = zipup(mpo, mps, stop=FixedDimension(bond_dim), finalround=None,conditioning=True)
+                elif name == 'fit':
+                    result = fit(mpo, mps, max_sweeps=fit_sweeps, stop=FixedDimension(bond_dim))
+                else:
+                    print("Invalid algorithm choice for ", name, " review your inputted algorithm names")
+                    return
+                temp_times[name].append(time.time() - start)
+                # print(baseline[0].shape,result[0].shape)
+                # for t in result.tensors:
+                #     print(t.shape)
+                temp_accs[name].append((baseline - result).norm() / baseline.norm())
+
+        # Compute the mean and std for this bond dimension
         new_row_data = {'Bond Dimension': bond_dim}
         for name in names:
-            new_row_data[f'{name} Time'] = times[name][-1]  
-            new_row_data[f'{name} Accuracy'] = accs[name][-1]  
+            times_mean = np.mean(temp_times[name])
+            times_std = np.std(temp_times[name])
+            acc_mean = np.mean(temp_accs[name])
+            acc_std = np.std(temp_accs[name])
+            
+            new_row_data[f'{name} Mean Time'] = times_mean
+            new_row_data[f'{name} Time Std'] = times_std
+            new_row_data[f'{name} Mean Accuracy'] = acc_mean
+            new_row_data[f'{name} Accuracy Std'] = acc_std
+            
+            times[name].append(times_mean)
+            std_times[name].append(times_std)
+            accs[name].append(acc_mean)
+            std_accs[name].append(acc_std)
+        
         new_row_df = pd.DataFrame([new_row_data]) 
         results_df = pd.concat([results_df, new_row_df], ignore_index=True)
         clear_output(wait=True)
         display(results_df)
+
+    # # Save data to a CSV file in the Figure2_data directory
+    # timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # file_name = f"figure2_data_{mps.N}_{mps.max_bond_dim()}_{timestamp}_{num_runs}.csv"
+    # file_path = os.path.join('Figure2_data', file_name)
+    # results_df.to_csv(file_path, index=False)
+    # print(f"Data saved to {file_path}")
         
     if highres:
          # High resolution separate plots
-        plt.figure( dpi=400)
-        plot_times(names, bond_dims, times)
+        plt.figure(dpi=500)
+        plot_times2(names, bond_dims, times, std_times)
         plt.tight_layout()
         plt.grid(True)
         plt.show()
 
-        plt.figure( dpi=400)
-        plot_accuracy(names, bond_dims, accs)
+        plt.figure(dpi=500)
+        plot_accuracy2(names, bond_dims, accs, std_accs)
         plt.tight_layout()
         plt.grid(True)
 
@@ -100,11 +131,10 @@ def fixed_synth_tensor_experiment(mpo,mps,baseline,bond_dims,names,a=-.5,b=1,hig
     else:
         # Standard multi-plot
         fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
-        plot_times(names, bond_dims, times, ax=axs[0])
-        plot_accuracy(names, bond_dims, accs, ax=axs[1])
+        plot_times2(names, bond_dims, times, std_times, ax=axs[0])
+        plot_accuracy2(names, bond_dims, accs, std_accs, ax=axs[1])
     if return_data:
-        return times,accs
-
+        return times, std_times, accs, std_accs
 def cutoff_synth_tensor_experiment(mpo,mps,baseline,cutoffs,names,a=-.5,b=1,highres=False,return_data=False,
                                    fit_sweeps=8,sketch_dim=10,sketch_increment=10):
     # baseline.canonize()

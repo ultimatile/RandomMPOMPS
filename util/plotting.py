@@ -3,7 +3,71 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 
+def plot_times2(test_names, var, mean_times_data, std_times_data, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+   
+    palette = sns.color_palette("Set1", 6)  
+    plot_styles = {
+        'naive': (palette[0], 'o', 'Contract-Then-Compress', '--'),   # First color, circle marker, dashed line
+        'random': (palette[1], 's', 'Randomized', '-'),  # Second color, square marker, solid line
+        'zipup': (palette[2], 'D', 'Zip-up', '-'),       # Third color, diamond marker, solid line
+        'density': (palette[3], '^', 'Density Matrix', '-'), # Fourth color, triangle up marker, solid line
+        'fit': (palette[4], 'v', 'Fitting', '-'),        # Fifth color, triangle down marker, solid line
+        'rand_then_orth': ('g', '^', 'Randomized C-T-C', '--'),      
+        'nyst': ('b', 'v', 'Nystrom Contraction', '--'),
+        'random+oversample': ('c', 'v', 'random+oversample', '--'),
 
+    }
+
+    for name in test_names:
+        if name in plot_styles and name in mean_times_data:
+            color, marker, label, linestyle = plot_styles[name]
+            mean_times = np.array(mean_times_data[name])
+            std_times = np.array(std_times_data[name])
+            ax.plot(var, mean_times, color=color, marker=marker, label=label, markersize=6, linewidth=1.5, linestyle=linestyle)
+            ax.fill_between(var, mean_times - std_times, mean_times + std_times, color=color, alpha=0.3)
+            
+    ax.set_yscale('log')
+    ax.grid()
+    ax.set_xlabel(r'Fixed Bond Dimension $\overline{\chi}$', fontsize=16)
+    ax.set_ylabel('Runtime', fontsize=16)
+    #ax.legend(fontsize=11, ncol=2)
+    ax.tick_params(axis='both', which='major', labelsize=16)
+    return ax
+    
+def plot_accuracy2(test_names, var, mean_acc_data, std_acc_data, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+        
+    palette = sns.color_palette("Set1", 6)  
+    plot_styles = {
+        'naive': (palette[0], 'o', 'Contract-Then-Compress', '-'),   # First color, circle marker, dashed line
+        'random': (palette[1], 's', 'Randomized', '--'),  # Second color, square marker, solid line
+        'zipup': (palette[2], 'D', 'Zip-up', '-'),       # Third color, diamond marker, solid line
+        'density': (palette[3], '^', 'Density Matrix', '-'), # Fourth color, triangle up marker, solid line
+        'fit': (palette[4], 'v', 'Fitting', '-'),        # Fifth color, triangle down marker, solid line
+        'rand_then_orth': ('g', '^', 'Randomized C-T-C', '--'),      
+        'nyst': ('b', 'v', 'Nystrom Contraction', '--'),
+        'random+oversample': ('c', 'v', 'rrandom+oversample', '--'),
+
+    }
+
+    for name in test_names:
+        if name in plot_styles and name in mean_acc_data:
+            color, marker, label, linestyle = plot_styles[name]
+            mean_acc = np.array(mean_acc_data[name])
+            std_acc = np.array(std_acc_data[name])
+            ax.plot(var, mean_acc, color=color, marker=marker, label=label, markersize=6, linewidth=1.5, linestyle=linestyle)
+            ax.fill_between(var, mean_acc - std_acc, mean_acc + std_acc, color=color, alpha=0.3)
+      
+    ax.set_yscale('log')
+    ax.grid()
+    ax.set_xlabel(r'Fixed Bond Dimension $\overline{\chi}$', fontsize=16)
+    ax.set_ylabel('Relative Error', fontsize=16)
+    # ax.legend(fontsize=12)
+    ax.tick_params(axis='both', which='major', labelsize=16)
+    return ax
     
 def plot_generic(ylabel, title, data_arrays, labels=None, log_scale=False,show_legend=True):
     """
@@ -802,4 +866,137 @@ def plot_relative_errors_line_plot_with_gradient(results, contraction_types, ste
 
     # Show plot
     plt.show()
+
+def load_specific_experiment_results(file_path):
+    # Check if file exists
+    try:
+        results_df = pd.read_csv(file_path)
+        print(f"Data loaded from {file_path}")
+        return results_df
+    except FileNotFoundError:
+        print(f"File {file_path} does not exist.")
+        return None
+    except Exception as e:
+        print(f"An error occurred while loading the file: {e}")
+        return None
+
+def extract_experiment_data(df, names):
+    # Initialize the dictionaries
+    times = {name: [] for name in names}
+    std_times = {name: [] for name in names}
+    accs = {name: [] for name in names}
+    std_accs = {name: [] for name in names}
     
+    # Loop through each name and populate the dictionaries
+    for name in names:
+        times_col = f'{name} Mean Time'
+        std_times_col = f'{name} Time Std'
+        accs_col = f'{name} Mean Accuracy'
+        std_accs_col = f'{name} Accuracy Std'
+        
+        # Populate the dictionaries by extracting data from the dataframe
+        times[name] = df[times_col].tolist()
+        std_times[name] = df[std_times_col].tolist()
+        accs[name] = df[accs_col].tolist()
+        std_accs[name] = df[std_accs_col].tolist()
+    
+    return times, std_times, accs, std_accs
+    
+
+def plot_runtime_vs_accuracy(test_names, times_data, std_times_data, accuracy_data, std_acc_data, var, mean_times_data, std_times_data_var):
+    # Create a figure with two horizontal subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8), constrained_layout=False)  # 18x8 figure
+    global_font_size = 18
+    global_marker_size = 8
+    global_line_width = 2
+    plt.subplots_adjust(wspace=0.3, top=0.85)  # Increase the width space between the subplots and space for legend
+
+    # Plot runtime vs accuracy on the first subplot (ax1)
+    palette = sns.color_palette("Set1", 6)
+    plot_styles = {
+        'naive': (palette[0], 'o', 'C-T-C', '-'),
+        'random': (palette[1], '^', 'Randomized', '-'),
+        'zipup': (palette[2], 'D', 'Zip-Up', '-'),
+        'density': (palette[3], 'd', 'Density Matrix', '-'),
+        'fit': (palette[4], 's', 'Fitting', '-'),
+        'rand_then_orth': ('g', '*', 'Randomized C-T-C', '-'),
+    }
+
+    handles = []
+    labels = []
+
+    for name in test_names:
+        if name in plot_styles and name in times_data and name in accuracy_data:
+            color, marker, label, linestyle = plot_styles[name]
+            times = np.array(times_data[name])
+            std_times = np.array(std_times_data[name])
+            accuracy = np.array(accuracy_data[name])
+            std_acc = np.array(std_acc_data[name])
+            if name == 'naive':
+                line, = ax1.plot(times, accuracy, color=color, marker=marker, label=label, markersize=8, 
+                            linewidth=global_line_width, linestyle=linestyle, markerfacecolor='none', markeredgewidth=1, alpha=1)
+            # Plot the line
+            else:
+                line, = ax1.plot(times, accuracy, color=color, marker=marker, label=label,
+                            markersize=global_marker_size, linewidth=global_line_width, linestyle=linestyle)
+
+            # Add standard deviation for times and accuracy
+            ax1.fill_between(times, accuracy - std_acc, accuracy + std_acc, color=color, alpha=0.2)
+            ax1.fill_betweenx(accuracy, times - std_times, times + std_times, color=color, alpha=0.2)
+
+            handles.append(line)
+            labels.append(label)
+
+    # Set log scales and labels
+    ax1.set_xscale('log')
+    ax1.set_yscale('log')
+    ax1.grid(True, which='both', ls='--', lw=0.5)
+    ax1.set_xlabel('Runtime (sec)', fontsize=global_font_size)
+    ax1.set_ylabel('Relative Error', fontsize=global_font_size)
+    ax1.tick_params(axis='both', which='major', labelsize=global_font_size)
+
+    # Remove manual aspect ratio setting for ax1
+    # ax1.set_aspect(x_range / y_range)  # Removed
+
+    # Legend for the first plot above the figure
+    handles, labels = ax1.get_legend_handles_labels()  # Assuming both plots have the same labels
+    fig.legend(handles, labels, loc='lower center', fontsize=20, ncol=4, bbox_to_anchor=(0.5, .95))
+
+    # Now plot requested bond dimension vs runtime on the second subplot (ax2)
+    def plot_times(test_names, var, mean_times_data, std_times_data, ax):
+        plot_styles = {
+            'naive': (palette[0], 'o', 'C-T-C', '-'),
+            'random': (palette[1], '^', 'Randomized', '-'),
+            'zipup': (palette[2], 'D', 'Zip-Up', '-'),
+            'density': (palette[3], 'd', 'Density Matrix', '-'),
+            'fit': (palette[4], 's', 'Fitting', '-'),
+            'rand_then_orth': ('g', '*', 'Randomized C-T-C', '-'),
+        }
+
+        for name in test_names:
+            if name in plot_styles and name in mean_times_data:
+                color, marker, label, linestyle = plot_styles[name]
+                mean_times = np.array(mean_times_data[name])
+                std_times = np.array(std_times_data[name])
+
+                if name == 'naive':
+                    ax.plot(var, mean_times, color=color, marker=marker, label=label,
+                            markersize=global_marker_size, linewidth=global_line_width,
+                            linestyle=linestyle, markerfacecolor='none', markeredgewidth=1, alpha=1)
+                else:
+                    ax.plot(var, mean_times, color=color, marker=marker, label=label,
+                            markersize=global_marker_size, linewidth=global_line_width, linestyle=linestyle)
+                    ax.fill_between(var, mean_times - std_times, mean_times + std_times, color=color, alpha=0.3)
+
+        ax.set_yscale('log')
+        ax.grid()
+        ax.set_xlabel(r'Requested Output Bond Dimension $\overline{\chi}$', fontsize=global_font_size)
+        ax.set_ylabel('Runtime', fontsize=global_font_size)
+        ax.tick_params(axis='both', which='major', labelsize=global_font_size)
+
+    # Call plot_times for the second subplot (ax2)
+    plot_times(test_names, var, mean_times_data, std_times_data_var, ax=ax2)
+
+    # Adjust layout to prevent clipping
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # Adjust layout to leave space for legend
+    plt.show()
