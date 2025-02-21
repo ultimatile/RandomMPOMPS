@@ -1106,3 +1106,149 @@ def darken_color(color, factor=0.1):
     color_rgb = mcolors.to_rgb(color)
     darkened_color = tuple(max(0, c - factor) for c in color_rgb)
     return darkened_color
+
+
+def prepare_data_for_plotting4(file_path):
+    """
+    Reads the CSV file containing benchmark data and prepares it for plotting.
+
+    Parameters:
+    - file_path (str): Path to the CSV file containing the benchmark data.
+
+    Returns:
+    - test_names (list): List of unique test names.
+    - cutoff_values (list): Sorted list of unique cutoff values.
+    - mean_times (dict): Dictionary of mean times for each test name.
+    - std_times (dict): Dictionary of standard deviations of times for each test name.
+    - mean_acc (dict): Dictionary of mean accuracies for each test name.
+    - std_acc (dict): Dictionary of standard deviations of accuracies for each test name.
+    - mean_bond_dims (dict): Dictionary of mean bond dimensions for each test name.
+    - std_bond_dims (dict): Dictionary of standard deviations of bond dimensions for each test name.
+    """
+    # Read the CSV file into a pandas DataFrame
+    df = pd.read_csv(file_path)
+    
+    # Get the list of unique test names
+    test_names = df['name'].unique().tolist()
+    
+    # Get the list of unique cutoff values, sorted in increasing order
+    cutoff_values = sorted(df['cutoff_value'].unique())
+    
+    # Initialize dictionaries to hold data for each test_name
+    mean_times = {}
+    std_times = {}
+    mean_acc = {}
+    std_acc = {}
+    mean_bond_dims = {}
+    std_bond_dims = {}
+    
+    # For each test name, extract the data and organize it
+    for name in test_names:
+        # Filter the DataFrame for the current name
+        df_name = df[df['name'] == name]
+        
+        # Sort the DataFrame by cutoff_value to ensure consistent ordering
+        df_name = df_name.sort_values('cutoff_value')
+        
+        # Extract the data arrays
+        mean_times[name] = df_name['mean_time'].values
+        std_times[name] = df_name['std_time'].values
+        mean_acc[name] = df_name['mean_accuracy'].values
+        std_acc[name] = df_name['std_accuracy'].values
+        mean_bond_dims[name] = df_name['mean_bond_dim'].values
+        std_bond_dims[name] = df_name['std_bond_dim'].values
+    
+    return (test_names, cutoff_values, mean_times, std_times, 
+            mean_acc, std_acc, mean_bond_dims, std_bond_dims)
+
+
+# Global settings for consistency
+global_font_size = 18
+global_marker_size = 8
+global_line_width = 2
+
+# Define plot styles globally for reuse
+PLOT_STYLES = {
+    'naive': ('Set1', 0, 'o', 'Contract-Then-Compress', '-'),   
+    'random': ('Set1', 1, 's', 'Randomized', '-'),  
+    'zipup': ('Set1', 2, 'D', 'Zip-up', '-'),       
+    'density': ('Set1', 3, '^', 'Density Matrix', '-'), 
+    'fit': ('Set1', 4, 'v', 'Fitting', '-'),        
+    'random+oversample': ('c', None, 'v', 'Randomized+Oversample', '--'),
+    'rzipup': ('Set1', 5, 'D', 'Zip-up', '-'),       
+}
+
+def plot_graph4(test_names, cutoffs, data, std_data, y_label, title, ax, y_scale='log',naive_marker_flag=True):
+    """Helper function to plot a single graph with conditional formatting and fill_between for std."""
+    palette = sns.color_palette("Set1", 6)
+
+    for name in test_names:
+        if name in PLOT_STYLES and name in data:
+            palette_name, color_idx, marker, label, linestyle = PLOT_STYLES[name]
+            color = sns.color_palette(palette_name, 6)[color_idx] if color_idx is not None else palette_name
+
+            # Extract the mean and std data for fill_between
+            mean_values = data[name]
+            std_values = std_data[name] if std_data and name in std_data else np.zeros_like(mean_values)
+
+            if name == 'naive':
+                # Plot 'naive' with custom styling
+                if naive_marker_flag:
+                    ax.plot(
+                        cutoffs, mean_values, color=color, marker=marker, label=label,
+                        markersize=16, linewidth=global_line_width, linestyle=linestyle,
+                        markerfacecolor='none', markeredgewidth=1, alpha=1
+                    )
+                else:
+                    ax.plot(
+                        cutoffs, mean_values, color=color, marker=marker, label=label,
+                        markersize=8, linewidth=global_line_width, linestyle=linestyle,
+                        markerfacecolor='none', markeredgewidth=1, alpha=1
+                    )
+            else:
+                # Plot other lines with default settings
+                ax.plot(
+                    cutoffs, mean_values, color=color, marker=marker, label=label,
+                    markersize=global_marker_size, linewidth=global_line_width, linestyle=linestyle
+                )
+
+            # Add fill_between for std
+            ax.fill_between(
+                cutoffs,
+                mean_values - std_values, mean_values + std_values,
+                color=color, alpha=0.2
+            )
+
+    ax.set_yscale(y_scale)
+    ax.set_xscale('log')
+    ax.set_xlabel('Tolerance', fontsize=global_font_size)
+    ax.set_ylabel(y_label, fontsize=global_font_size)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.7, alpha=0.7)
+
+    # Adjust tick parameters
+    ax.tick_params(axis='both', which='major', labelsize=global_font_size - 2)
+
+def combined_plot4(test_names, cutoff_values, mean_times, std_times, 
+                  mean_acc, std_acc, mean_bond_dims, std_bond_dims):
+    """Function to create a combined plot with three subplots and a shared top legend."""
+    fig, axes = plt.subplots(1, 3, figsize=(20, 6), constrained_layout=True)
+
+    # Adjust layout for tighter spacing
+    plt.subplots_adjust(wspace=0.4, hspace=0.4, top=0.85)
+
+    # Plot each graph on the respective axis
+    plot_graph4(test_names, cutoff_values, mean_times, std_times, 'Time (s)', None, axes[0],naive_marker_flag=False)
+    plot_graph4(test_names, cutoff_values, mean_acc, std_acc, 'Relative Error', None, axes[1])
+    plot_graph4(test_names, cutoff_values, mean_bond_dims, std_bond_dims, 'Bond Dimension', None, axes[2],y_scale="log",)
+
+    # Collect legend handles and labels from one of the axes
+    handles, labels = axes[0].get_legend_handles_labels()
+
+    # Create a shared legend at the top of the figure
+    fig.legend(
+        handles, labels, loc='upper center', fontsize=global_font_size - 1, ncol=3, 
+        bbox_to_anchor=(0.5, 1.2)
+    )
+
+    # Show the plot
+    plt.show()

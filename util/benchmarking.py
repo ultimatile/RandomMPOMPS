@@ -379,3 +379,79 @@ def fitting_experiment(mpo, mps, baseline, bond_dims, names, num_runs=1, a=-.5, 
     
     if return_data:
         return times, std_times, accs, std_accs
+    
+
+def cutoff_synth_tensor_experiment4(mpo,mps,baseline,cutoffs,names,a=-.5,b=1,highres=False,return_data=False,
+                                   fit_sweeps=1,sketch_dim=2,sketch_increment=3,no_plot=True):
+    # baseline.canonize()
+    # print(baseline.norm())
+    
+    times = {name: [] for name in names}
+    accs = {name: [] for name in names}
+    bond_dims = {name: [] for name in names}
+
+    column_names = ['Cutoff Value'] + [f'{name} {metric}' for name in names for metric in ['Time', 'Accuracy']]  
+    results_df = pd.DataFrame(columns=column_names)
+    display(results_df)
+
+
+    for cutoff in cutoffs:
+        for name in names:
+            print(name)
+            start = time.time()
+            if name == 'naive':
+                result = mps_mpo_blas(mps, mpo, stop=Cutoff(cutoff),round_type = "dass_blas")
+            elif name == 'random':
+                result = random_contraction_inc(mpo, mps, stop=Cutoff(cutoff), accuracychecks=False, 
+                                              finalround=Cutoff(cutoff),sketchincrement=sketch_increment,sketchdim=sketch_dim)
+            elif name == 'random+oversample':
+                    result = random_contraction_inc(mpo, mps, stop=Cutoff(cutoff/10), accuracychecks=False, 
+                                                    finalround=Cutoff(cutoff), sketchincrement=sketch_increment, sketchdim=sketch_dim)
+            elif name == 'density':
+                result = density_matrix(mpo, mps,stop=Cutoff(cutoff))
+            elif name == 'zipup':
+                result = zipup(mpo, mps, stop=Cutoff(cutoff),finalround=False,conditioning=True)
+            elif name == 'rzipup':
+                result = zipup_randomsvd(mpo, mps, stop=Cutoff(cutoff),finalround=False,conditioning=True)
+            elif name == 'fit':
+                result = fit(mpo, mps, max_sweeps=fit_sweeps,stop=Cutoff(cutoff))
+            else:
+                print("Invalid algorithm choice for ", name, " review your inputted algorithm names")
+                return
+            
+            times[name].append(time.time() - start)
+            accs[name].append((baseline - result).norm() / baseline.norm())
+            bond_dims[name].append(result.max_bond_dim())
+            
+        # Data Frame population
+        new_row_data = {'Cutoff Value': cutoff}
+        for name in names:
+            new_row_data[f'{name} Time'] = times[name][-1]
+            new_row_data[f'{name} Accuracy'] = accs[name][-1]
+        new_row_df = pd.DataFrame([new_row_data])
+        results_df = pd.concat([results_df, new_row_df], ignore_index=True)
+        clear_output(wait=True)
+        display(results_df)
+    if no_plot:
+        pass
+    elif highres:
+         # High resolution separate plots
+        plt.figure( dpi=400)
+        plot_times_reversed(names, cutoffs, times)
+        plt.tight_layout()
+        plt.grid(True)
+        plt.show()
+
+        plt.figure( dpi=400)
+        plot_accuracy_reversed(names, cutoffs, accs)
+        plt.tight_layout()
+        plt.grid(True)
+
+        plt.show()
+    else:
+        # Standard multi-plot
+        fig, axs = plt.subplots(1, 2, figsize=(12, 5)) 
+        plot_times_reversed(names, cutoffs, times, ax=axs[0])
+        plot_accuracy_reversed(names, cutoffs, accs, ax=axs[1])
+    if return_data:
+        return times,accs,bond_dims
