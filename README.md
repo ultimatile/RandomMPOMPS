@@ -23,7 +23,7 @@ To set up the required Conda environment, use the provided `environment.yml` fil
 
 ```bash
 conda env create -f environment.yml
-conda activate tensor2
+conda activate randomTensor
 ```
 
 This will create and activate the Conda environment named `tensor2` with all necessary dependencies.
