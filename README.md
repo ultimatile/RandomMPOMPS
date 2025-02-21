@@ -1,4 +1,6 @@
 # RandomMPSMPO
+![image](https://github.com/user-attachments/assets/7115b41f-4860-4852-98a7-37639ee6b172)
+
 ## A Randomized Algorithm for the Compressed MPS-MPO Product
 
 ---
