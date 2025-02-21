@@ -1,43 +1,65 @@
 # RandomMPSMPO
-A randomized algorithm for the compressed MPS-MPO product
-
-## Installation Instructions
+## A Randomized Algorithm for the Compressed MPS-MPO Product
 
 ---
 
+## **Installation Instructions**
+
 ### **System Requirements**
-All experiments were run using:
-- **LAPACK**: 3.12.0
-- **OpenBLAS**: 0.3.28
+This project has been tested with the following dependencies:
+
+- **LAPACK**: `3.12.0`
+- **OpenBLAS**: `0.3.28`
+
+Ensure these libraries are installed and available in your environment for optimal performance.
+
+---
 
 ### **Environment Setup**
-This project requires a Conda environment defined in `environment.yml`. To create and activate it, run:
+To set up the required Conda environment, use the provided `environment.yml` file. Run the following commands from the project root:
 
 ```bash
 conda env create -f environment.yml
 conda activate tensor2
 ```
 
-### (Optional) Optimized Incremental QR Build
-To enable the fastest version of the randomized MPO-MPS algorithm, you can build our custom C++ incremental QR implementation. This step may be more complex for Windows users.
+This will create and activate the Conda environment named `tensor2` with all necessary dependencies.
 
-With the environment activated, execute the setup script from the project root:
+---
+
+### **(Optional) Optimized Incremental QR Build**
+For optimal performance, we provide a custom C++ implementation of the incremental QR decomposition. If you choose not to build it, the default Python `scipy` version will be used (which is slower).
+
+#### **Building the Optimized Incremental QR**
+With the Conda environment activated, run the following command from the project root:
 
 ```bash
 bash setup_QR.sh
 ```
 
-If the build is successful, running the following command from the project root:
+#### **Verifying a Successful Build**
+After building, you can verify that the optimized C++ implementation is being used by running:
 
 ```bash
 python code/tensornetwork/incrementalqr.py
 ```
 
-should print:
+If the build was successful, you should see the following message at the start of the output:
 
 ```
 Using C++ implementation for incQR
 ```
 
-at the start of the program, confirming that the build was successful.
+If this message does not appear, the build may have failed, and the default Python implementation will be used instead.
 
+---
+
+### **Notes for Windows Users**
+Building the optimized incremental QR decomposition may require additional configuration of `cmake` and a compatible C++ compiler. Ensure you have a properly configured build system before proceeding.
+
+---
+
+### **Support & Contributions**
+If you encounter issues or have suggestions, feel free to open an issue or contribute to the project.
+
+---
