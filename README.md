@@ -31,7 +31,7 @@ This will create and activate the Conda environment named `tensor2` with all nec
 ---
 
 ### **(Optional) Optimized Incremental QR Build**
-For optimal performance, we provide a custom C++ implementation of the incremental QR decomposition. If you choose not to build it, the default Python `scipy` version will be used (which is slower).
+For optimal performance, we provide a custom C++ implementation of the incremental QR decomposition. If you choose not to build it, a Python version written in  `scipy` will be used (which is slower).
 
 #### **Building the Optimized Incremental QR**
 With the Conda environment activated, run the following command from the project root:
