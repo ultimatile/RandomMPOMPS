@@ -3,7 +3,7 @@
 
 
 ## A Randomized Algorithm for the Compressed MPS-MPO Product
-<DESCRIPTION> <PAPER LINK> <RESOURCES>
+_insert description here _
 ---
 
 ## **Installation Instructions**
