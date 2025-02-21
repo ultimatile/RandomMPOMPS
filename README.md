@@ -1,4 +1,4 @@
-# Randomized MPS-MPO Contraction
+# Randomized MPO-MPS Contraction
 ![image](https://github.com/user-attachments/assets/a5b459df-9637-47fc-ab68-07b71f9da004)
 
 
