@@ -3,7 +3,7 @@
 
 
 ## A Randomized Algorithm for the Compressed MPS-MPO Product
-_insert description here _
+This repository contains the code and experimental results detailed in the paper [Successive randomized compression: A randomized algorithm for the compressed MPO-MPS product](https://arxiv.org/abs/2504.06475)
 ---
 
 ## **Installation Instructions**
