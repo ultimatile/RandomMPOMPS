@@ -1,9 +1,9 @@
-# Randomized MPS-MPO Contraction
+# Randomized MPO-MPS Contraction
 ![image](https://github.com/user-attachments/assets/a5b459df-9637-47fc-ab68-07b71f9da004)
 
 
 ## A Randomized Algorithm for the Compressed MPS-MPO Product
-<DESCRIPTION> <PAPER LINK> <RESOURCES>
+_insert description here _
 ---
 
 ## **Installation Instructions**
@@ -23,7 +23,7 @@ To set up the required Conda environment, use the provided `environment.yml` fil
 
 ```bash
 conda env create -f environment.yml
-conda activate tensor2
+conda activate randomTensor
 ```
 
 This will create and activate the Conda environment named `tensor2` with all necessary dependencies.
