@@ -2,3 +2,21 @@
 __pycache__/
 *.py[cod]
 *.local.md
+.python-version
+uv.lock
+
+# CMake build files
+build/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+*.cmake
+compile_commands.json
+
+# Generated libraries/executables
+*.so
+*.dylib
+*.dll
+*.a
+*.lib

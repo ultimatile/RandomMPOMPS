@@ -8,16 +8,12 @@ import os
 os.environ['OMP_NUM_THREADS'] = '11'
 os.environ['OPENBLAS_NUM_THREADS'] = '11'
 
-#Adjust locally 
-sys.path.append(r'../tensornetwork/build/')
-
 try:
-    from libincrementalqr import setup, add_cols, extract_q, get_error_estimate
+    from .libincrementalqr import setup, add_cols, extract_q, get_error_estimate
     print("Using C++ implementation for incQR")
     libincrementalqr_available = True
 except Exception as e:
     print("Using Python implementation for incQR")
-
     print("An exception occurred:", e)
     libincrementalqr_available = False
 
